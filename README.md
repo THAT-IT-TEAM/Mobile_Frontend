@@ -1,16 +1,43 @@
-# it_team_app
+# Mobile Frontend – THAT-IT-TEAM
 
-A new Flutter project.
+This repository contains the mobile frontend for the THAT-IT-TEAM project built using Flutter.
+
+---
 
 ## Getting Started
 
-This project is a starting point for a Flutter application.
+### 1. Clone or Download the Project
 
-A few resources to get you started if this is your first Flutter project:
+If you're cloning:
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+```bash
+git clone https://github.com/THAT-IT-TEAM/Mobile_Frontend.git
+cd Mobile_Frontend
+```
+---
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+2. Setup Flutter Environment
+Make sure Flutter is installed. Check with:
+
+```bash
+flutter --version
+```
+
+Install dependencies:
+
+```bash
+flutter pub get
+```
+
+3. Run the App
+   ```bash
+   flutter run
+   ```
+
+## Stuff
+- landing page
+- login page
+- file upload
+
+---
+all of those are incomplete 🙏 
