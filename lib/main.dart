@@ -1,91 +1,36 @@
 import 'package:flutter/material.dart';
-import 'login_page.dart';
-import 'file_upload.dart'; // <- Make sure this file exists in lib/
+import 'package:file_selector/file_selector.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:it_team_app/login_page.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-void main() {
+Future<void> main() async {
+  // Ensure Flutter binding is initialized
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Load the .env file
+  await dotenv.load(fileName: ".env");
+
+  // Initialize Supabase
+  final String supabaseUrl = dotenv.env['SUPABASE_URL']!;
+  final String supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY']!;
+
+  await Supabase.initialize(
+    url: supabaseUrl,
+    anonKey: supabaseAnonKey,
+  );
+
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  static const Color background = Color(0xFFFFD3AC);
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Corporate App',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        scaffoldBackgroundColor: background,
-        useMaterial3: true,
-      ),
-      home: const HomePage(),
+      title: 'IT Team App',
+      home: LoginPage(), // Assuming your login page widget is named LoginPage
     );
   }
-}
-
-class HomePage extends StatelessWidget {
-  const HomePage({super.key});
-
-  static const Color buttonColor = Color(0xFF664C36);
-  static const Color textDark = Color(0xFF331C08);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: buttonColor,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => LoginPage()),
-                );
-              },
-              child: const Text(
-                'Login',
-                style: TextStyle(
-                  color: textDark,
-                  fontSize: 18,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: buttonColor,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const FileUploadPage()),
-                );
-              },
-              child: const Text(
-                'Upload File',
-                style: TextStyle(
-                  color: textDark,
-                  fontSize: 18,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+} 
