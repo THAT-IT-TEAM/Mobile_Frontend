@@ -1,9 +1,67 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:it_team_app/file_upload.dart';
+import 'package:it_team_app/auth_service.dart';
+import 'package:it_team_app/landing_page.dart';
 
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
+
+  Future<void> _logout(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+      backgroundColor: const Color(0xFF181818),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: const BorderSide(color: Colors.white, width: 2),
+      ),
+      title: const Text(
+        'Confirm Logout',
+        style: TextStyle(
+        fontFamily: 'EudoxusSans',
+        color: Colors.white,
+        fontWeight: FontWeight.w600,
+        ),
+      ),
+      content: const Text(
+        'Are you sure you want to log out?',
+        style: TextStyle(
+        fontFamily: 'EudoxusSans',
+        color: Colors.white70,
+        ),
+      ),
+      actions: [
+        TextButton(
+        style: TextButton.styleFrom(
+          foregroundColor: Colors.white70,
+          textStyle: const TextStyle(fontFamily: 'EudoxusSans'),
+        ),
+        onPressed: () => Navigator.of(context).pop(false),
+        child: const Text('Cancel'),
+        ),
+        TextButton(
+        style: TextButton.styleFrom(
+          foregroundColor: Colors.white,
+          textStyle: const TextStyle(
+          fontFamily: 'EudoxusSans',
+          fontWeight: FontWeight.bold,
+          ),
+        ),
+        onPressed: () => Navigator.of(context).pop(true),
+        child: const Text('Logout'),
+        ),
+      ],
+      ),
+    );
+    if (confirmed == true) {
+      await AuthService().clearToken();
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LandingLoginPage()),
+        (route) => false,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,6 +75,13 @@ class DashboardPage extends StatelessWidget {
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
         elevation: 4,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Logout',
+            onPressed: () => _logout(context),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
@@ -32,54 +97,71 @@ class DashboardPage extends StatelessWidget {
             _buildSectionTitle('Expenditure Graph'),
             const SizedBox(height: 12),
             Center(
-              child: SizedBox(
-              height: 200,
-              width: 300,
-              child: LineChart(
-                LineChartData(
-                gridData: FlGridData(show: true),
-                titlesData: FlTitlesData(
-                  bottomTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    getTitlesWidget: (value, _) => Text(
-                    ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'][value.toInt()],
-                    style: const TextStyle(color: Colors.white),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxWidth: 600,
+                    minWidth: 200,
+                    minHeight: 220,
+                    maxHeight: 280,
+                  ),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 240,
+                    child: LineChart(
+                      LineChartData(
+                        gridData: FlGridData(show: false),
+                        titlesData: FlTitlesData(
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              getTitlesWidget: (value, _) {
+                                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+                                if (value % 1 == 0 && value >= 0 && value < months.length) {
+                                  return Text(
+                                    months[value.toInt()],
+                                    style: const TextStyle(color: Colors.white),
+                                  );
+                                }
+                                return const SizedBox.shrink();
+                              },
+                            ),
+                          ),
+                          leftTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              reservedSize: 0,
+                              showTitles: true,
+                              getTitlesWidget: (value, _) => Text(
+                                '',
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                            ),
+                          ),
+                          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        ),
+                        borderData: FlBorderData(show: true, border: Border.all(color: Colors.white)),
+                        lineBarsData: [
+                          LineChartBarData(
+                            isCurved: true,
+                            spots: [
+                              FlSpot(0, 100),
+                              FlSpot(1, 200),
+                              FlSpot(2, 150),
+                              FlSpot(3, 180),
+                              FlSpot(4, 240),
+                              FlSpot(5, 300),
+                            ],
+                            color: Colors.white,
+                            barWidth: 3,
+                            dotData: FlDotData(show: true),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  ),
-                  leftTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    reservedSize: 50,
-                    showTitles: true,
-                    getTitlesWidget: (value, _) => Text(
-                    '₹${value.toInt()}',
-                    style: const TextStyle(color: Colors.white),
-                    ),
-                  ),
-                  ),
-                  rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
                 ),
-                borderData: FlBorderData(show: true, border: Border.all(color: Colors.white)),
-                lineBarsData: [
-                  LineChartBarData(
-                  isCurved: true,
-                  spots: [
-                    FlSpot(0, 100),
-                    FlSpot(1, 200),
-                    FlSpot(2, 150),
-                    FlSpot(3, 180),
-                    FlSpot(4, 240),
-                    FlSpot(5, 300),
-                  ],
-                  color: Colors.white,
-                  barWidth: 3,
-                  dotData: FlDotData(show: true),
-                  ),
-                ],
-                ),
-              ),
               ),
             ),
             const SizedBox(height: 24),

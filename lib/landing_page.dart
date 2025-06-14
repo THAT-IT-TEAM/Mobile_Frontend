@@ -1,10 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:it_team_app/file_upload.dart';
-import 'package:it_team_app/supabase_service.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:it_team_app/dashboard.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:it_team_app/dashboard.dart';
+import 'auth_service.dart';
 
 class LandingLoginPage extends StatefulWidget {
   const LandingLoginPage({super.key});
@@ -16,25 +15,12 @@ class LandingLoginPage extends StatefulWidget {
 class _LandingLoginPageState extends State<LandingLoginPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final SupabaseService _supabaseService = SupabaseService();
+  final TextEditingController _walletIdController = TextEditingController();
+  final AuthService _authService = AuthService();
 
   bool _showLogin = false;
   bool _isLoading = false;
   String? _errorMessage;
-  bool _isSupabaseInitialized = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _initializeSupabase();
-  }
-
-  Future<void> _initializeSupabase() async {
-    await _supabaseService.initialize();
-    setState(() {
-      _isSupabaseInitialized = true;
-    });
-  }
 
   Future<void> _signIn() async {
     setState(() {
@@ -42,29 +28,32 @@ class _LandingLoginPageState extends State<LandingLoginPage> {
       _errorMessage = null;
     });
     try {
-      final String email = _emailController.text.trim();
-      final String password = _passwordController.text.trim();
-
-      final response = await _supabaseService.signInWithPassword(
-        email: email,
-        password: password,
+      final result = await _authService.login(
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
+        _walletIdController.text.trim(),
       );
-
-      if (response.session != null && response.user != null) {
+      final user = result['user'];
+      if (user != null && user['role'] == 'admin') {
+        setState(() {
+          _errorMessage = "Admins cannot login on mobile";
+          _emailController.clear();
+          _passwordController.clear();
+          _walletIdController.clear();
+        });
+      } else {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const DashboardPage()),
         );
-      } else {
-        setState(() {
-          _errorMessage = 'Login failed. Please check your credentials.';
-        });
       }
+    } on SocketException {
+      setState(() {
+        _errorMessage = "Currently offline, please try again later";
+      });
     } catch (e) {
       setState(() {
-        _errorMessage = (e is AuthException)
-            ? 'Login failed: ${e.message}'
-            : 'An unexpected error occurred: ${e.toString()}';
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
       });
     } finally {
       setState(() {
@@ -79,28 +68,17 @@ class _LandingLoginPageState extends State<LandingLoginPage> {
       _errorMessage = null;
     });
     try {
-      final String email = _emailController.text.trim();
-      final String password = _passwordController.text.trim();
-
-      final response = await _supabaseService.signUp(
-        email: email,
-        password: password,
+      await _authService.register(
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
+        _walletIdController.text.trim(),
       );
-
       setState(() {
-        _errorMessage = (response.session != null && response.user != null)
-            ? 'Sign up successful! Please login.'
-            : 'Sign up failed. Please try again.';
+        _errorMessage = 'Sign up successful! Please login.';
       });
     } catch (e) {
       setState(() {
-        if (e is AuthException) {
-          _errorMessage = e.message.contains('User already registered')
-              ? 'Account already exists. Please sign in.'
-              : 'Sign up failed: ${e.message}';
-        } else {
-          _errorMessage = 'An unexpected error occurred: ${e.toString()}';
-        }
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
       });
     } finally {
       setState(() {
@@ -113,6 +91,7 @@ class _LandingLoginPageState extends State<LandingLoginPage> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _walletIdController.dispose();
     super.dispose();
   }
 
@@ -240,10 +219,16 @@ class _LandingLoginPageState extends State<LandingLoginPage> {
                               ),
                             ),
                             IconButton(
-                              icon: const Icon(Icons.close,
-                                  color: Colors.white),
-                              onPressed: () =>
-                                  setState(() => _showLogin = false),
+                              icon: const Icon(Icons.close, color: Colors.white),
+                              onPressed: () {
+                                setState(() {
+                                  _showLogin = false;
+                                  _emailController.clear();
+                                  _passwordController.clear();
+                                  _walletIdController.clear();
+                                  _errorMessage = null;
+                                });
+                              },
                             )
                           ],
                         ),
@@ -279,11 +264,24 @@ class _LandingLoginPageState extends State<LandingLoginPage> {
                             ),
                           ),
                         ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: _walletIdController,
+                          style: const TextStyle(color: textColor),
+                          decoration: const InputDecoration(
+                            labelText: 'Wallet ID',
+                            labelStyle: TextStyle(color: textColor),
+                            enabledBorder: UnderlineInputBorder(
+                              borderSide: BorderSide(color: textColor),
+                            ),
+                            focusedBorder: UnderlineInputBorder(
+                              borderSide: BorderSide(color: textColor),
+                            ),
+                          ),
+                        ),
                         const SizedBox(height: 24),
                         ElevatedButton(
-                          onPressed: (!_isSupabaseInitialized || _isLoading)
-                              ? null
-                              : _signIn,
+                          onPressed: _isLoading ? null : _signIn,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.transparent,
                             side: const BorderSide(color: Colors.white),
@@ -304,9 +302,7 @@ class _LandingLoginPageState extends State<LandingLoginPage> {
                         ),
                         const SizedBox(height: 12),
                         TextButton(
-                          onPressed: (!_isSupabaseInitialized || _isLoading)
-                              ? null
-                              : _signUp,
+                          onPressed: _isLoading ? null : _signUp,
                           child: const Text(
                             'Don\'t have an account? Sign Up',
                             style: TextStyle(color: textColor),
@@ -317,7 +313,7 @@ class _LandingLoginPageState extends State<LandingLoginPage> {
                           Text(
                             _errorMessage!,
                             style:
-                                const TextStyle(color: Colors.redAccent),
+                                TextStyle(color: Colors.redAccent),
                             textAlign: TextAlign.center,
                           ),
                         ],
@@ -339,24 +335,15 @@ class ArrowPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFF1E1E1E) // dark grey fill
+      ..color = const Color(0xFF1E1E1E)
       ..style = PaintingStyle.fill;
 
     final path = Path();
 
-    // Start from top-left
     path.moveTo(0, 100);
-
-    // Top curve
     path.quadraticBezierTo(size.width / 2, 0, size.width, 100);
-
-    // Right edge down
     path.lineTo(size.width, size.height);
-
-    // Bottom edge left
     path.lineTo(0, size.height);
-
-    // Left edge up
     path.close();
 
     canvas.drawPath(path, paint);
