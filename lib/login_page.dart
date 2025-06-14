@@ -1,63 +1,68 @@
 import 'package:flutter/material.dart';
-import 'package:it_team_app/file_upload.dart'; // Import the file upload page
-import 'package:supabase_flutter/supabase_flutter.dart'; // Import Supabase
+import 'package:it_team_app/file_upload.dart';
+import 'package:it_team_app/supabase_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
-// Define the LoginPage StatefulWidget
+
 class LoginPage extends StatefulWidget {
-  const LoginPage({Key? key}) : super(key: key);
+  const LoginPage({super.key});
 
   @override
   _LoginPageState createState() => _LoginPageState();
 }
 
-// Define the state for the LoginPage
 class _LoginPageState extends State<LoginPage> {
-  // Controllers for text fields
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final SupabaseService _supabaseService = SupabaseService();
 
-  // Get the global Supabase client instance
-  final SupabaseClient _supabaseClient = Supabase.instance.client;
-
-  // State variables for loading and errors
   bool _isLoading = false;
   String? _errorMessage;
+  bool _isSupabaseInitialized = false;
 
-  // Existing _signIn function, now part of the state
+  @override
+  void initState() {
+    super.initState();
+    _initializeSupabase();
+  }
+
+  Future<void> _initializeSupabase() async {
+    await _supabaseService.initialize();
+    setState(() {
+      _isSupabaseInitialized = true;
+    });
+  }
+
   Future<void> _signIn() async {
     setState(() {
       _isLoading = true;
-      _errorMessage = null; // Clear previous errors
+      _errorMessage = null;
     });
     try {
-      // Get email and password from text controllers
       final String email = _emailController.text.trim();
       final String password = _passwordController.text.trim();
 
-      final response = await _supabaseClient.auth.signInWithPassword(
+      final response = await _supabaseService.signInWithPassword(
         email: email,
         password: password,
       );
 
-      // Check if session and user are not null for successful login
       if (response.session != null && response.user != null) {
-        print('Login successful!');
-        // TODO: Navigate to your main application screen
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => FileUploadPage()), // Navigate to FileUploadPage
+          MaterialPageRoute(builder: (context) => const FileUploadPage()),
         );
-      } else { // Handle login failure (session or user is null)
-        print('Login failed: Invalid credentials or other authentication issue.');
+      } else {
         setState(() {
-          // Display a generic error message if the specific error is not accessible
           _errorMessage = 'Login failed. Please check your credentials.';
         });
       }
     } catch (e) {
-      print('An unexpected error occurred: $e');
       setState(() {
-        _errorMessage = 'An error occurred: ${e.toString()}'; // Display caught exceptions
+        _errorMessage = (e is AuthException)
+            ? 'Login failed: ${e.message}'
+            : 'An unexpected error occurred: ${e.toString()}';
       });
     } finally {
       setState(() {
@@ -66,40 +71,34 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // Existing _signUp function, now part of the state
   Future<void> _signUp() async {
     setState(() {
       _isLoading = true;
-      _errorMessage = null; // Clear previous errors
+      _errorMessage = null;
     });
     try {
-      // Get email and password from text controllers
       final String email = _emailController.text.trim();
       final String password = _passwordController.text.trim();
 
-      final response = await _supabaseClient.auth.signUp(
+      final response = await _supabaseService.signUp(
         email: email,
         password: password,
       );
 
-      // Check if session and user are not null for successful sign up
-      if (response.session != null && response.user != null) {
-        print('Sign up successful!');
-        // TODO: Handle successful sign up (e.g., show confirmation, navigate to login)
-        setState(() {
-          _errorMessage = 'Sign up successful! Please login.'; // Show success message
-        });
-      } else { // Handle sign up failure
-        print('Sign up failed: Could not create account.');
-        setState(() {
-          // Display a generic error message if the specific error is not accessible
-          _errorMessage = 'Sign up failed. Please try again.';
-        });
-      }
-    } catch (e) {
-      print('An unexpected error occurred during sign up: $e');
       setState(() {
-        _errorMessage = 'An error occurred during sign up: ${e.toString()}'; // Display caught exceptions
+        _errorMessage = (response.session != null && response.user != null)
+            ? 'Sign up successful! Please login.'
+            : 'Sign up failed. Please try again.';
+      });
+    } catch (e) {
+      setState(() {
+        if (e is AuthException) {
+          _errorMessage = e.message.contains('User already registered')
+              ? 'Account already exists. Please sign in.'
+              : 'Sign up failed: ${e.message}';
+        } else {
+          _errorMessage = 'An unexpected error occurred: ${e.toString()}';
+        }
       });
     } finally {
       setState(() {
@@ -110,7 +109,6 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   void dispose() {
-    // Clean up the controllers when the widget is disposed
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -118,51 +116,112 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Build the UI for the login page
+    const backgroundColor = Color(0xFF1E1E1E);
+    const cardColor = Color(0xFF2C2C2C);
+    const textColor = Color(0xFFE0E2DB);
+
+    if (!_isSupabaseInitialized) {
+      return const Scaffold(
+        backgroundColor: backgroundColor,
+        body: Center(child: CircularProgressIndicator(color: textColor)),
+      );
+    }
+
     return Scaffold(
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        title: const Text('Login'),
+        backgroundColor: backgroundColor,
+        elevation: 0,
+        title: const Text('Welcome Back', style: TextStyle(color: textColor)),
+        centerTitle: true,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            TextField(
-              controller: _emailController,
-              decoration: const InputDecoration(
-                labelText: 'Email',
+      body: Center(
+        child: SingleChildScrollView(
+          child: Animate(
+            effects: [FadeEffect(), ScaleEffect()],
+            child: Container(
+              padding: const EdgeInsets.all(24.0),
+              margin: const EdgeInsets.symmetric(horizontal: 16.0),
+              decoration: BoxDecoration(
+                color: cardColor,
+                borderRadius: BorderRadius.circular(16.0),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.5),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  TextField(
+                    controller: _emailController,
+                    style: const TextStyle(color: textColor),
+                    decoration: const InputDecoration(
+                      labelText: 'Email',
+                      labelStyle: TextStyle(color: textColor),
+                      enabledBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: textColor),
+                      ),
+                    ),
+                    keyboardType: TextInputType.emailAddress,
+                  ),
+                  const SizedBox(height: 16.0),
+                  TextField(
+                    controller: _passwordController,
+                    obscureText: true,
+                    style: const TextStyle(color: textColor),
+                    decoration: const InputDecoration(
+                      labelText: 'Password',
+                      labelStyle: TextStyle(color: textColor),
+                      enabledBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: textColor),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24.0),
+                  ElevatedButton(
+                    onPressed: (!_isSupabaseInitialized || _isLoading) ? null : _signIn,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey[800],
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12.0),
+                      ),
+                    ),
+                    child: _isLoading
+                        ? const CircularProgressIndicator(color: textColor)
+                        : const Text('Sign In', style: TextStyle(color: textColor)),
+                  ),
+                  const SizedBox(height: 12.0),
+                  TextButton(
+                    onPressed: (!_isSupabaseInitialized || _isLoading) ? null : _signUp,
+                    child: const Text('Sign Up', style: TextStyle(color: textColor)),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const FileUploadPage()),
+                      );
+                    },
+                    child: const Text('Go to File Upload Page', style: TextStyle(color: textColor)),
+                  ),
+                  if (_errorMessage != null) ...[
+                    const SizedBox(height: 12.0),
+                    Text(
+                      _errorMessage!,
+                      style: const TextStyle(color: Colors.redAccent),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ],
               ),
             ),
-            const SizedBox(height: 12.0),
-            TextField(
-              controller: _passwordController,
-              decoration: const InputDecoration(
-                labelText: 'Password',
-              ),
-              obscureText: true,
-            ),
-            const SizedBox(height: 20.0),
-            ElevatedButton(
-              onPressed: _isLoading ? null : _signIn, // Disable button when loading
-              child: _isLoading
-                  ? const CircularProgressIndicator() // Show loading indicator
-                  : const Text('Sign In'),
-            ),
-            TextButton(
-              onPressed: _isLoading ? null : _signUp, // Disable button when loading
-              child: const Text('Sign Up'),
-            ),
-            if (_errorMessage != null) ...[ // Display error message if not null
-              const SizedBox(height: 12.0),
-              Text(
-                _errorMessage!,
-                style: const TextStyle(color: Colors.red),
-              ),
-            ],
-          ],
+          ),
         ),
       ),
     );
   }
-} 
+}

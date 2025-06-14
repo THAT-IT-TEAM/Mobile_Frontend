@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:file_selector/file_selector.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:it_team_app/login_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:it_team_app/landing_page.dart';
 
 Future<void> main() async {
   // Ensure Flutter binding is initialized
@@ -30,7 +29,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'IT Team App',
-      home: LoginPage(), // Assuming your login page widget is named LoginPage
+      home: LandingLoginPage(), // Assuming your login page widget is named LoginPage
     );
   }
 } 
