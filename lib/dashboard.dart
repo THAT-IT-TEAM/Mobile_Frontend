@@ -146,120 +146,142 @@ class _DashboardPageState extends State<DashboardPage> {
     return Scaffold(
       backgroundColor: darkBackground,
       appBar: AppBar(
-        title: const Text('Dashboard'),
+        centerTitle: true,
+        title: const Text(
+          'Dashboard',
+          style: TextStyle(fontFamily: 'Impact', fontSize: 30),
+        ),
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
         elevation: 4,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Logout',
-            onPressed: () => _logout(context),
+        icon: const Icon(Icons.logout),
+        tooltip: 'Logout',
+        onPressed: () => _logout(context),
           ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(child: Text(_error!, style: const TextStyle(color: Colors.redAccent)))
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildCard('Current Expenditure', _formatCurrency(_summary?['currentExpenditure'])),
-                      _buildCard('Budget', _formatCurrency(_summary?['budget'])),
-                      _buildCard('Vendors', '${_summary?['vendors'] ?? '-'} Active'),
-                      _buildCard('Audit Sync Rate', '${_summary?['auditSyncRate'] ?? '-'}%'),
-                      _buildCard('Active Projects', '${_summary?['activeProjects'] ?? '-'}'),
-                      const SizedBox(height: 24),
-                      _buildSectionTitle('Expense Table'),
-                      Container(
-                        height: 300,
-                        width: double.infinity,
-                        margin: const EdgeInsets.only(top: 12),
-                        decoration: BoxDecoration(
-                          color: placeholderColor,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.white, width: 2),
-                        ),
-                        child: _expenses.isEmpty
-                            ? const Center(
-                                child: Text('No expenses found',
-                                    style: TextStyle(color: Colors.white70)))
-                            : SingleChildScrollView(
-                                child: DataTable(
-                                  columnSpacing: 20,
-                                  columns: const [
-                                    DataColumn(
-                                      label: Text('Vendor',
-                                          style: TextStyle(color: Colors.white)),
-                                    ),
-                                    DataColumn(
-                                      label: Text('Amount',
-                                          style: TextStyle(color: Colors.white)),
-                                    ),
-                                    DataColumn(
-                                      label: Text('Category',
-                                          style: TextStyle(color: Colors.white)),
-                                    ),
-                                    DataColumn(
-                                      label: Text('Date',
-                                          style: TextStyle(color: Colors.white)),
-                                    ),
-                                  ],
-                                  rows: _expenses.map<DataRow>((expense) {
-                                    return DataRow(
-                                      cells: [
-                                        DataCell(Text(
-                                            expense['vendor_name'] ?? 'Unknown',
-                                            style: const TextStyle(
-                                                color: Colors.white))),
-                                        DataCell(Text(
-                                            '${expense['currency'] ?? 'USD'} ${_formatCurrency(expense['amount'])}',
-                                            style: const TextStyle(
-                                                color: Colors.white))),
-                                        DataCell(Text(
-                                            expense['category'] ?? 'Uncategorized',
-                                            style: const TextStyle(
-                                                color: Colors.white))),
-                                        DataCell(Text(
-                                            _formatDate(expense['transaction_date']),
-                                            style: const TextStyle(
-                                                color: Colors.white))),
-                                      ],
-                                    );
-                                  }).toList(),
-                                ),
-                              ),
+      body: Stack(
+        children: [
+          _loading
+              ? const Center(child: CircularProgressIndicator())
+              : _error != null
+                  ? Center(child: Text(_error!, style: const TextStyle(color: Colors.redAccent)))
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.only(
+                        left: 16,
+                        right: 16,
+                        top: 24,
+                        bottom: 96, // Add padding for the fixed button
                       ),
-                      const SizedBox(height: 32),
-                      Center(
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF333333),
-                            shape: RoundedRectangleBorder(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildCard('Current Expenditure', _formatCurrency(_summary?['currentExpenditure'])),
+                          _buildCard('Budget', _formatCurrency(_summary?['budget'])),
+                          _buildCard('Vendors', '${_summary?['vendors'] ?? '-'} Active'),
+                          _buildCard('Audit Sync Rate', '${_summary?['auditSyncRate'] ?? '-'}%'),
+                          _buildCard('Active Projects', '${_summary?['activeProjects'] ?? '-'}'),
+                          const SizedBox(height: 24),
+                          _buildSectionTitle('Expense Table'),
+                          Container(
+                            height: 200,
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(top: 12),
+                            decoration: BoxDecoration(
+                              color: placeholderColor,
                               borderRadius: BorderRadius.circular(16),
-                              side: const BorderSide(color: Colors.white, width: 1.5),
+                              border: Border.all(color: Colors.white, width: 2),
                             ),
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                            child: _expenses.isEmpty
+                                ? const Center(
+                                    child: Text('No expenses found',
+                                        style: TextStyle(color: Colors.white70)))
+                                : SingleChildScrollView(
+                                    child: DataTable(
+                                      columnSpacing: 20,
+                                      columns: const [
+                                        DataColumn(
+                                          label: Text('Vendor',
+                                              style: TextStyle(color: Colors.white, fontFamily: 'Impact')),
+                                        ),
+                                        DataColumn(
+                                          label: Text('Amount',
+                                              style: TextStyle(color: Colors.white, fontFamily: 'Impact')),
+                                        ),
+                                        DataColumn(
+                                          label: Text('Category',
+                                              style: TextStyle(color: Colors.white, fontFamily: 'Impact')),
+                                        ),
+                                        DataColumn(
+                                          label: Text('Date',
+                                              style: TextStyle(color: Colors.white, fontFamily: 'Impact')),
+                                        ),
+                                      ],
+                                      rows: _expenses.map<DataRow>((expense) {
+                                        return DataRow(
+                                          cells: [
+                                            DataCell(Text(
+                                                expense['vendor_name'] ?? 'Unknown',
+                                                style: const TextStyle(
+                                                    color: Colors.white))),
+                                            DataCell(Text(
+                                                '${expense['currency'] ?? 'USD'} ${_formatCurrency(expense['amount'])}',
+                                                style: const TextStyle(
+                                                    color: Colors.white))),
+                                            DataCell(Text(
+                                                expense['category'] ?? 'Uncategorized',
+                                                style: const TextStyle(
+                                                    color: Colors.white))),
+                                            DataCell(Text(
+                                                _formatDate(expense['transaction_date']),
+                                                style: const TextStyle(
+                                                    color: Colors.white))),
+                                          ],
+                                        );
+                                      }).toList(),
+                                    ),
+                                  ),
                           ),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => const FileUploadPage()),
-                            );
-                          },
-                          child: const Text(
-                            'Upload New Expense',
-                            style: TextStyle(color: Colors.white, fontSize: 18),
-                          ),
-                        ),
+                          const SizedBox(height: 32),
+                        ],
                       ),
-                      const SizedBox(height: 24),
-                    ],
+                    ),
+          // Fixed Upload Button
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 34, // Moved up from bottom
+            child: Center(
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF333333),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: const BorderSide(color: Colors.white, width: 2),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const FileUploadPage()),
+                  );
+                },
+                child: const Text(
+                  'Upload New Expense',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontFamily: 'Impact'
                   ),
                 ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -290,9 +312,20 @@ class _DashboardPageState extends State<DashboardPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(color: Colors.white70, fontSize: 14)),
+          Text(
+            title,
+            style: const TextStyle(color: Colors.white70, fontSize: 14, fontFamily: 'Impact')
+          ),
           const SizedBox(height: 8),
-          Text(value, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Impact'
+            )
+          ),
         ],
       ),
     );
@@ -305,6 +338,7 @@ class _DashboardPageState extends State<DashboardPage> {
         fontSize: 18,
         color: Colors.white,
         fontWeight: FontWeight.w600,
+        fontFamily: 'Impact'
       ),
     );
   }

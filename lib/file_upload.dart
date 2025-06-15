@@ -246,7 +246,10 @@ class _FileUploadPageState extends State<FileUploadPage>
     return Scaffold(
       backgroundColor: darkBackground,
       appBar: AppBar(
-        title: const Text('File Upload'),
+        centerTitle: true,
+        title: const Text('File Upload', 
+          style: TextStyle(fontFamily: 'Impact', fontSize: 30)
+        ),
         backgroundColor: Colors.black,
         elevation: 4,
         foregroundColor: Colors.white,
@@ -291,11 +294,11 @@ class _FileUploadPageState extends State<FileUploadPage>
                           filled: true,
                           fillColor: Color(0xFF1E1E1E),
                           labelText: 'Select a Trip',
-                          labelStyle: TextStyle(color: Colors.white70),
+                          labelStyle: TextStyle(color: Colors.white70, fontFamily: 'Impact'),
                           border: OutlineInputBorder(),
                         ),
                         dropdownColor: const Color(0xFF1E1E1E),
-                        style: const TextStyle(color: Colors.white),
+                        style: const TextStyle(color: Colors.white, fontFamily: 'Impact'),
                         value: _selectedTripId,
                         items: _trips.map((trip) {
                           return DropdownMenuItem<String>(
@@ -316,7 +319,7 @@ class _FileUploadPageState extends State<FileUploadPage>
                       const SizedBox(height: 24),
                       if (fileName != null)
                         Text('Selected file: $fileName',
-                            style: const TextStyle(color: Colors.white)),
+                            style: const TextStyle(color: Colors.white, fontFamily: 'Impact')),
                       if (_uploadMessage != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 8.0),
@@ -326,6 +329,7 @@ class _FileUploadPageState extends State<FileUploadPage>
                               color: _uploadMessage!.contains('success')
                                   ? Colors.green
                                   : Colors.redAccent,
+                              fontFamily: 'Impact'
                             ),
                           ),
                         ),
@@ -335,11 +339,13 @@ class _FileUploadPageState extends State<FileUploadPage>
                           child: Column(
                             children: [
                               const Text('Uploaded URL:',
-                                  style: TextStyle(color: Colors.white)),
+                                  style: TextStyle(color: Colors.white, fontFamily: 'Impact')),
                               SelectableText(
                                 _uploadedFileUrl!,
                                 style: const TextStyle(
-                                    color: Colors.blueAccent, fontSize: 12),
+                                    color: Colors.blueAccent, 
+                                    fontSize: 12,
+                                    fontFamily: 'Impact'),
                               ),
                             ],
                           ),
@@ -377,6 +383,7 @@ class _FileUploadPageState extends State<FileUploadPage>
                     style: TextStyle(
                       color: _fileUploaded ? Colors.white38 : Colors.white70,
                       fontSize: 16,
+                      fontFamily: 'Impact'
                     ),
                   ),
                   const SizedBox(height: 24),

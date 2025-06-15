@@ -66,9 +66,16 @@ flutter:
   uses-material-design: true
 
   fonts:
+    - family: Impact
+      fonts:
+        - asset: fonts/impact.ttf
     - family: EudoxusSans
       fonts: 
         - asset: fonts/EudoxusSans.ttf
+    - family: Ortland
+      fonts:
+        - asset: fonts/ortland.otf
+      
 
   # To add assets to your application, add an assets section, like this:
   # assets:

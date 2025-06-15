@@ -17,7 +17,7 @@ class _LandingLoginPageState extends State<LandingLoginPage> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _walletIdController = TextEditingController();
   final AuthService _authService = AuthService();
-
+  
   bool _showLogin = false;
   bool _isLoading = false;
   String? _errorMessage;
@@ -107,6 +107,25 @@ class _LandingLoginPageState extends State<LandingLoginPage> {
       backgroundColor: backgroundColor,
       body: Stack(
         children: [
+          // Background Text
+          Positioned(
+            top: height * 0.15,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Text(
+                'EXPENSYNC',
+                style: TextStyle(
+                  fontFamily: 'Impact',
+                  fontSize: 56,
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 4,
+                ),
+              ),
+            ),
+          ),
+          
           // Arrow Panel (Landing Page)
           AnimatedPositioned(
             duration: const Duration(milliseconds: 700),
@@ -156,6 +175,7 @@ class _LandingLoginPageState extends State<LandingLoginPage> {
                                     Text(
                                       'Log In',
                                       style: TextStyle(
+                                        fontFamily: 'Impact',
                                         color: Colors.white,
                                         fontSize: 18,
                                         fontWeight: FontWeight.w500,
@@ -297,7 +317,9 @@ class _LandingLoginPageState extends State<LandingLoginPage> {
                               : const Text(
                                   'Sign In',
                                   style: TextStyle(
-                                      color: textColor, fontSize: 16),
+                                      fontFamily: 'Impact',
+                                      color: textColor, 
+                                      fontSize: 16),
                                 ),
                         ),
                         const SizedBox(height: 12),
@@ -305,7 +327,10 @@ class _LandingLoginPageState extends State<LandingLoginPage> {
                           onPressed: _isLoading ? null : _signUp,
                           child: const Text(
                             'Don\'t have an account? Sign Up',
-                            style: TextStyle(color: textColor),
+                            style: TextStyle(
+                              fontFamily: 'Impact',
+                              color: textColor
+                            ),
                           ),
                         ),
                         if (_errorMessage != null) ...[
