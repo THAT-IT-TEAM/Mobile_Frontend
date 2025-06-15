@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:file_selector/file_selector.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'dart:io';
 import 'dart:math';
 import 'package:it_team_app/api_service.dart';
+import 'package:it_team_app/auth_service.dart';
 
 class FileUploadPage extends StatefulWidget {
   const FileUploadPage({super.key});
@@ -24,18 +23,13 @@ class _FileUploadPageState extends State<FileUploadPage>
   List<Map<String, dynamic>> _trips = [];
   String? _selectedTripId;
   bool _isLoadingTrips = true;
-  bool _isUploading = false;
   String? _uploadMessage;
   String? _uploadedFileUrl;
   String? _tripsErrorMessage;
 
-  
-
-  final SupabaseClient _supabaseClient = Supabase.instance.client;
   final ApiService _apiService = ApiService();
 
   late AnimationController _animationController;
-  late Animation<double> _fadeInAnimation;
 
   final PageController _pageController = PageController(viewportFraction: 0.5);
   double _currentPage = 0;
@@ -48,10 +42,6 @@ class _FileUploadPageState extends State<FileUploadPage>
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
-    );
-
-    _fadeInAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
     );
 
     _animationController.forward();
@@ -81,16 +71,30 @@ class _FileUploadPageState extends State<FileUploadPage>
       _tripsErrorMessage = null;
     });
     try {
-      final List<Map<String, dynamic>>? trips = await _supabaseClient
-          .from('trips')
-          .select('*') as List<Map<String, dynamic>>?;
-
+      final authService = AuthService();
+      final email = await authService.getCurrentUserEmail();
+      if (email == null) {
+        setState(() {
+          _tripsErrorMessage = 'No user email found. Please log in again.';
+          _trips = [];
+        });
+        return;
+      }
+      final userId = await _apiService.getUserIdByEmail(email);
+      if (userId == null) {
+        setState(() {
+          _tripsErrorMessage = 'User ID not found for email.';
+          _trips = [];
+        });
+        return;
+      }
+      final trips = await _apiService.getTripsByUser(userId);
       setState(() {
-        _trips = trips ?? [];
+        _trips = trips;
       });
     } catch (e) {
       setState(() {
-        _tripsErrorMessage = 'Failed to load trips: \${e.toString()}';
+        _tripsErrorMessage = 'Failed to load trips: [${e.toString()}';
         _trips = [];
       });
     } finally {
@@ -101,26 +105,18 @@ class _FileUploadPageState extends State<FileUploadPage>
   }
 
   Future<void> pickAndUploadFile() async {
-    if (_selectedTripId == null) {
-      setState(() {
-        _uploadMessage = 'Please select a trip first.';
-      });
-      return;
-    }
-
     final typeGroup = XTypeGroup(
       label: 'images',
       extensions: ['jpg', 'jpeg', 'png', 'gif'],
     );
 
     final XFile? file = await openFile(acceptedTypeGroups: [typeGroup]);
-
     if (file == null) return;
 
     final fileSizeLimit = 5 * 1024 * 1024;
     if (await file.length() > fileSizeLimit) {
       setState(() {
-        _uploadMessage = 'File size exceeds limit (\$fileSizeLimit bytes).';
+        _uploadMessage = 'File size exceeds limit ($fileSizeLimit bytes).';
         fileName = null;
       });
       return;
@@ -130,63 +126,22 @@ class _FileUploadPageState extends State<FileUploadPage>
       fileName = file.name;
       _uploadMessage = null;
       _uploadedFileUrl = null;
-      _isUploading = true;
     });
 
-    final userId = _supabaseClient.auth.currentUser?.id;
-    if (userId == null) {
-      setState(() {
-        _uploadMessage = 'Error: User not logged in.';
-        _isUploading = false;
-      });
-      return;
-    }
-
-    final filePath = '\$userId/\${_selectedTripId!}/\$fileName';
-    const bucketName = 'images';
-
-    final String? uploadedUrl =
-        await uploadFile(File(file.path), bucketName, filePath);
-
-    setState(() {
-      _isUploading = false;
-      if (uploadedUrl != null) {
-        _uploadedFileUrl = uploadedUrl;
-        _uploadMessage = 'Upload successful!';
-
-        String? modifiedFileUrl = _uploadedFileUrl;
-        if (modifiedFileUrl != null) {
-          modifiedFileUrl =
-              modifiedFileUrl.replaceFirst('/public/images/', '/public/');
-        }
-
-        if (modifiedFileUrl != null && _selectedTripId != null) {
-          _apiService.callOcrApi(
-            fileUrl: modifiedFileUrl,
-            userId: userId,
-            tripId: _selectedTripId!,
-          );
-        }
-      } else {
-        _uploadMessage = 'Upload failed.';
-      }
-    });
-  }
-
-  Future<String?> uploadFile(
-      File file, String bucketName, String filePath) async {
     try {
-      final String uploadedFilePath = await _supabaseClient.storage
-          .from(bucketName)
-          .upload(filePath, file,
-              fileOptions: const FileOptions(cacheControl: '3600'));
-
-      final String publicUrl =
-          _supabaseClient.storage.from(bucketName).getPublicUrl(uploadedFilePath);
-
-      return publicUrl;
+      final String? uploadedUrl = await _apiService.uploadFile(File(file.path));
+      setState(() {
+        if (uploadedUrl != null) {
+          _uploadedFileUrl = uploadedUrl;
+          _uploadMessage = 'Upload successful!';
+        } else {
+          _uploadMessage = 'Upload failed.';
+        }
+      });
     } catch (e) {
-      return null;
+      setState(() {
+        _uploadMessage = 'Upload failed: ${e.toString()}';
+      });
     }
   }
 
@@ -320,7 +275,7 @@ class _FileUploadPageState extends State<FileUploadPage>
                       ),
                       const SizedBox(height: 24),
                       if (fileName != null)
-                        Text('Selected file: \$fileName',
+                        Text('Selected file: $fileName',
                             style: const TextStyle(color: Colors.white)),
                       if (_uploadMessage != null)
                         Padding(
@@ -353,7 +308,6 @@ class _FileUploadPageState extends State<FileUploadPage>
                   ],
                 ),
               ),
-              
             ),
             const SizedBox(height: 240),
             GestureDetector(

@@ -11,47 +11,47 @@ class DashboardPage extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-      backgroundColor: const Color(0xFF181818),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-        side: const BorderSide(color: Colors.white, width: 2),
-      ),
-      title: const Text(
-        'Confirm Logout',
-        style: TextStyle(
-        fontFamily: 'EudoxusSans',
-        color: Colors.white,
-        fontWeight: FontWeight.w600,
+        backgroundColor: const Color(0xFF181818),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: const BorderSide(color: Colors.white, width: 2),
         ),
-      ),
-      content: const Text(
-        'Are you sure you want to log out?',
-        style: TextStyle(
-        fontFamily: 'EudoxusSans',
-        color: Colors.white70,
-        ),
-      ),
-      actions: [
-        TextButton(
-        style: TextButton.styleFrom(
-          foregroundColor: Colors.white70,
-          textStyle: const TextStyle(fontFamily: 'EudoxusSans'),
-        ),
-        onPressed: () => Navigator.of(context).pop(false),
-        child: const Text('Cancel'),
-        ),
-        TextButton(
-        style: TextButton.styleFrom(
-          foregroundColor: Colors.white,
-          textStyle: const TextStyle(
-          fontFamily: 'EudoxusSans',
-          fontWeight: FontWeight.bold,
+        title: const Text(
+          'Confirm Logout',
+          style: TextStyle(
+            fontFamily: 'EudoxusSans',
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
           ),
         ),
-        onPressed: () => Navigator.of(context).pop(true),
-        child: const Text('Logout'),
+        content: const Text(
+          'Are you sure you want to log out?',
+          style: TextStyle(
+            fontFamily: 'EudoxusSans',
+            color: Colors.white70,
+          ),
         ),
-      ],
+        actions: [
+          TextButton(
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.white70,
+              textStyle: const TextStyle(fontFamily: 'EudoxusSans'),
+            ),
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.white,
+              textStyle: const TextStyle(
+                fontFamily: 'EudoxusSans',
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Logout'),
+          ),
+        ],
       ),
     );
     if (confirmed == true) {

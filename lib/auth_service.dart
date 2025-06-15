@@ -62,6 +62,11 @@ class AuthService {
       if (response.statusCode == 200 && data['token'] != null) {
         await setToken(data['token']);
         await setCurrentUser(data['user']);
+
+        // Store user email after successful login
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('userEmail', email);
+
         return {'token': data['token'], 'user': data['user']};
       }
       throw Exception(data['error'] ?? 'Login failed');
@@ -122,5 +127,10 @@ class AuthService {
       'Content-Type': 'application/json',
       if (token != null) 'Authorization': 'Bearer $token',
     };
+  }
+
+  Future<String?> getCurrentUserEmail() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('userEmail');
   }
 }
