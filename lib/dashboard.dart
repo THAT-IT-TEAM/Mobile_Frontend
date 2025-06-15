@@ -1,11 +1,86 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:it_team_app/file_upload.dart';
 import 'package:it_team_app/auth_service.dart';
 import 'package:it_team_app/landing_page.dart';
+import 'package:it_team_app/expense_service.dart';
 
-class DashboardPage extends StatelessWidget {
+// Replace with your actual API base URL
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+final String API_BASE_URL = dotenv.env['API_BASE_URL'] ?? '';
+
+class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
+
+  @override
+  State<DashboardPage> createState() => _DashboardPageState();
+}
+
+class _DashboardPageState extends State<DashboardPage> {
+  Map<String, dynamic>? _summary;
+  List<dynamic> _expenses = [];
+  bool _loading = true;
+  String? _error;
+  final ExpenseService _expenseService = ExpenseService();
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDashboardData();
+  }
+
+  Future<void> _fetchDashboardData() async {
+    await Future.wait([
+      _fetchDashboardSummary(),
+      _fetchExpenses(),
+    ]);
+  }
+
+  Future<void> _fetchExpenses() async {
+    try {
+      final expenses = await _expenseService.getExpensesByEmail();
+      setState(() {
+        _expenses = expenses;
+      });
+    } catch (e) {
+      print('Error fetching expenses: $e');
+      // Don't set error state as this is secondary data
+    }
+  }
+
+  Future<void> _fetchDashboardSummary() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final headers = await AuthService().getAuthHeaders();
+      final response = await http.get(
+        Uri.parse('$API_BASE_URL/api/dashboard/user-summary'),
+        headers: headers,
+      );
+      if (response.statusCode == 200) {
+        setState(() {
+          print('Dashboard Summary Response: ${response.body}');
+          _summary = json.decode(response.body);
+          _loading = false;
+        });
+      } else {
+        setState(() {
+          _error = 'Failed to load dashboard data';
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _error = 'Error: $e';
+        _loading = false;
+      });
+    }
+  }
 
   Future<void> _logout(BuildContext context) async {
     final confirmed = await showDialog<bool>(
@@ -83,130 +158,123 @@ class DashboardPage extends StatelessWidget {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildCard('Current Expenditure', '₹1,20,000'),
-            _buildCard('Budget', '₹2,50,000'),
-            _buildCard('Vendors', '12 Active'),
-            _buildCard('Audit Sync Rate', '85%'),
-            _buildCard('Active Projects', '5'),
-            const SizedBox(height: 24),
-            _buildSectionTitle('Expenditure Graph'),
-            const SizedBox(height: 12),
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    maxWidth: 600,
-                    minWidth: 200,
-                    minHeight: 220,
-                    maxHeight: 280,
-                  ),
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 240,
-                    child: LineChart(
-                      LineChartData(
-                        gridData: FlGridData(show: false),
-                        titlesData: FlTitlesData(
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              getTitlesWidget: (value, _) {
-                                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
-                                if (value % 1 == 0 && value >= 0 && value < months.length) {
-                                  return Text(
-                                    months[value.toInt()],
-                                    style: const TextStyle(color: Colors.white),
-                                  );
-                                }
-                                return const SizedBox.shrink();
-                              },
-                            ),
-                          ),
-                          leftTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              reservedSize: 0,
-                              showTitles: true,
-                              getTitlesWidget: (value, _) => Text(
-                                '',
-                                style: const TextStyle(color: Colors.white),
-                              ),
-                            ),
-                          ),
-                          rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                          topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(child: Text(_error!, style: const TextStyle(color: Colors.redAccent)))
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildCard('Current Expenditure', _formatCurrency(_summary?['currentExpenditure'])),
+                      _buildCard('Budget', _formatCurrency(_summary?['budget'])),
+                      _buildCard('Vendors', '${_summary?['vendors'] ?? '-'} Active'),
+                      _buildCard('Audit Sync Rate', '${_summary?['auditSyncRate'] ?? '-'}%'),
+                      _buildCard('Active Projects', '${_summary?['activeProjects'] ?? '-'}'),
+                      const SizedBox(height: 24),
+                      _buildSectionTitle('Expense Table'),
+                      Container(
+                        height: 300,
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(top: 12),
+                        decoration: BoxDecoration(
+                          color: placeholderColor,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.white, width: 2),
                         ),
-                        borderData: FlBorderData(show: true, border: Border.all(color: Colors.white)),
-                        lineBarsData: [
-                          LineChartBarData(
-                            isCurved: true,
-                            spots: [
-                              FlSpot(0, 100),
-                              FlSpot(1, 200),
-                              FlSpot(2, 150),
-                              FlSpot(3, 180),
-                              FlSpot(4, 240),
-                              FlSpot(5, 300),
-                            ],
-                            color: Colors.white,
-                            barWidth: 3,
-                            dotData: FlDotData(show: true),
-                          ),
-                        ],
+                        child: _expenses.isEmpty
+                            ? const Center(
+                                child: Text('No expenses found',
+                                    style: TextStyle(color: Colors.white70)))
+                            : SingleChildScrollView(
+                                child: DataTable(
+                                  columnSpacing: 20,
+                                  columns: const [
+                                    DataColumn(
+                                      label: Text('Vendor',
+                                          style: TextStyle(color: Colors.white)),
+                                    ),
+                                    DataColumn(
+                                      label: Text('Amount',
+                                          style: TextStyle(color: Colors.white)),
+                                    ),
+                                    DataColumn(
+                                      label: Text('Category',
+                                          style: TextStyle(color: Colors.white)),
+                                    ),
+                                    DataColumn(
+                                      label: Text('Date',
+                                          style: TextStyle(color: Colors.white)),
+                                    ),
+                                  ],
+                                  rows: _expenses.map<DataRow>((expense) {
+                                    return DataRow(
+                                      cells: [
+                                        DataCell(Text(
+                                            expense['vendor_name'] ?? 'Unknown',
+                                            style: const TextStyle(
+                                                color: Colors.white))),
+                                        DataCell(Text(
+                                            '${expense['currency'] ?? 'USD'} ${_formatCurrency(expense['amount'])}',
+                                            style: const TextStyle(
+                                                color: Colors.white))),
+                                        DataCell(Text(
+                                            expense['category'] ?? 'Uncategorized',
+                                            style: const TextStyle(
+                                                color: Colors.white))),
+                                        DataCell(Text(
+                                            _formatDate(expense['transaction_date']),
+                                            style: const TextStyle(
+                                                color: Colors.white))),
+                                      ],
+                                    );
+                                  }).toList(),
+                                ),
+                              ),
                       ),
-                    ),
+                      const SizedBox(height: 32),
+                      Center(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF333333),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              side: const BorderSide(color: Colors.white, width: 1.5),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                          ),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => const FileUploadPage()),
+                            );
+                          },
+                          child: const Text(
+                            'Upload New Expense',
+                            style: TextStyle(color: Colors.white, fontSize: 18),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            _buildSectionTitle('Expense Table'),
-            Container(
-              height: 200,
-              width: double.infinity,
-              margin: const EdgeInsets.only(top: 12),
-              decoration: BoxDecoration(
-                color: placeholderColor,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white, width: 2),
-              ),
-              child: const Center(
-                child: Text('Table will go here', style: TextStyle(color: Colors.white70)),
-              ),
-            ),
-            const SizedBox(height: 32),
-            Center(
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF333333),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    side: const BorderSide(color: Colors.white, width: 1.5),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                ),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const FileUploadPage()),
-                  );
-                },
-                child: const Text(
-                  'Upload New Expense',
-                  style: TextStyle(color: Colors.white, fontSize: 18),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-          ],
-        ),
-      ),
     );
+  }
+
+  String _formatCurrency(dynamic value) {
+    if (value == null) return '-';
+    return '₹${value.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}';
+  }
+
+  String _formatDate(String dateString) {
+    try {
+      final date = DateTime.parse(dateString);
+      return '${date.day}/${date.month}/${date.year}';
+    } catch (e) {
+      return dateString; // Return the original string in case of error
+    }
   }
 
   Widget _buildCard(String title, String value) {

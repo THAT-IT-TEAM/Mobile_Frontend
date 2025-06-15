@@ -6,7 +6,6 @@ import 'package:it_team_app/auth_service.dart';
 import 'package:it_team_app/ocr_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:it_team_app/camera_guide_screen.dart';
-import 'package:it_team_app/expense_edit_page.dart';
 
 class FileUploadPage extends StatefulWidget {
   const FileUploadPage({super.key});
@@ -123,53 +122,22 @@ class _FileUploadPageState extends State<FileUploadPage>
           final userId = await _apiService.getUserIdByEmail(email);
           if (userId != null) {
             try {
-              final expenseId = await OcrService().callOcrApi(
+              await OcrService().callOcrApi(
                 fileUrl: uploadedUrl,
                 userId: userId,
                 tripId: _selectedTripId!,
               );
-              
-              // Get initial expense details
-        Map<String, dynamic> details;
-              try {
-                details = await OcrService().getExpenseDetails(expenseId);
-                
-                setState(() {
-                  _uploadMessage = 'Receipt processed successfully!';
-                  _ocrError = null;
-                  _fileUploaded = true;
-                });
-              } catch (e) {
-                setState(() {
-                  _ocrError = e.toString();
-                  _uploadMessage = 'Failed to fetch expense details. Please try again.';
-                  _fileUploaded = false;
-                });
-                return;
-              }
 
-              // Navigate to expense edit page
+              setState(() {
+                _uploadMessage = 'Receipt processed successfully!';
+                _ocrError = null;
+                _fileUploaded = true;
+              });
+
+              // Wait a moment to show the success message, then pop back
+              await Future.delayed(const Duration(seconds: 2));
               if (mounted) {
-                final result = await Navigator.push<bool>(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ExpenseEditPage(
-                      expenseId: expenseId,
-                      initialData: details,
-                    ),
-                  ),
-                );
-
-                if (result == true) {
-                  // Expense was saved successfully
-                  setState(() {
-                    _uploadMessage = 'Expense details saved';
-                  });
-                } else {
-                  setState(() {
-                    _fileUploaded = false;
-                  });
-                }
+                Navigator.of(context).pop(); // Go back to dashboard
               }
             } catch (e) {
               setState(() {
@@ -278,7 +246,7 @@ class _FileUploadPageState extends State<FileUploadPage>
     return Scaffold(
       backgroundColor: darkBackground,
       appBar: AppBar(
-        title: const Text('Dashboard'),
+        title: const Text('File Upload'),
         backgroundColor: Colors.black,
         elevation: 4,
         foregroundColor: Colors.white,
@@ -381,7 +349,7 @@ class _FileUploadPageState extends State<FileUploadPage>
                 ),
               ),
             ),
-            const SizedBox(height: 240),
+            const SizedBox(height: 480),
             GestureDetector(
               onVerticalDragStart: (details) {
                 _dragStartOffset = details.globalPosition;
