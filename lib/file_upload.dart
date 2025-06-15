@@ -1,15 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:file_selector/file_selector.dart';
 import 'dart:io';
-import 'dart:math';
 import 'package:it_team_app/api_service.dart';
 import 'package:it_team_app/auth_service.dart';
+import 'package:it_team_app/ocr_service.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:it_team_app/camera_guide_screen.dart';
+import 'package:it_team_app/expense_edit_page.dart';
 
 class FileUploadPage extends StatefulWidget {
   const FileUploadPage({super.key});
 
   @override
   State<FileUploadPage> createState() => _FileUploadPageState();
+}
+
+class FileUploadError extends Error {
+  final String message;
+  FileUploadError(this.message);
+  @override
+  String toString() => message;
 }
 
 late AnimationController _arrowController;
@@ -26,31 +36,15 @@ class _FileUploadPageState extends State<FileUploadPage>
   String? _uploadMessage;
   String? _uploadedFileUrl;
   String? _tripsErrorMessage;
+  String? _ocrError;
+  bool _fileUploaded = false;
 
   final ApiService _apiService = ApiService();
-
-  late AnimationController _animationController;
-
-  final PageController _pageController = PageController(viewportFraction: 0.5);
-  double _currentPage = 0;
-
   @override
   void initState() {
     super.initState();
     _fetchTrips();
 
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    );
-
-    _animationController.forward();
-
-    _pageController.addListener(() {
-      setState(() {
-        _currentPage = _pageController.page!;
-      });
-    });
     _arrowController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
@@ -104,68 +98,178 @@ class _FileUploadPageState extends State<FileUploadPage>
     }
   }
 
+  Future<void> _processUploadedFile(XFile file) async {
+    if (_fileUploaded) return;
+
+    setState(() {
+      fileName = file.name;
+      _uploadMessage = 'Processing...';
+      _ocrError = null;
+      _uploadedFileUrl = null;
+    });
+
+    try {
+      final uploadedUrl = await _apiService.uploadFile(File(file.path));
+      
+      if (uploadedUrl != null) {
+        setState(() {
+          _uploadedFileUrl = uploadedUrl;
+          _uploadMessage = 'Processing receipt...';
+        });
+
+        final authService = AuthService();
+        final email = await authService.getCurrentUserEmail();
+        if (email != null) {
+          final userId = await _apiService.getUserIdByEmail(email);
+          if (userId != null) {
+            try {
+              final expenseId = await OcrService().callOcrApi(
+                fileUrl: uploadedUrl,
+                userId: userId,
+                tripId: _selectedTripId!,
+              );
+              
+              // Get initial expense details
+        Map<String, dynamic> details;
+              try {
+                details = await OcrService().getExpenseDetails(expenseId);
+                
+                setState(() {
+                  _uploadMessage = 'Receipt processed successfully!';
+                  _ocrError = null;
+                  _fileUploaded = true;
+                });
+              } catch (e) {
+                setState(() {
+                  _ocrError = e.toString();
+                  _uploadMessage = 'Failed to fetch expense details. Please try again.';
+                  _fileUploaded = false;
+                });
+                return;
+              }
+
+              // Navigate to expense edit page
+              if (mounted) {
+                final result = await Navigator.push<bool>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ExpenseEditPage(
+                      expenseId: expenseId,
+                      initialData: details,
+                    ),
+                  ),
+                );
+
+                if (result == true) {
+                  // Expense was saved successfully
+                  setState(() {
+                    _uploadMessage = 'Expense details saved';
+                  });
+                } else {
+                  setState(() {
+                    _fileUploaded = false;
+                  });
+                }
+              }
+            } catch (e) {
+              setState(() {
+                _ocrError = e.toString();
+                _uploadMessage = 'Upload successful, but OCR processing failed';
+                _fileUploaded = false;
+              });
+            }
+          } else {
+            throw FileUploadError('Could not find user ID');
+          }
+        } else {
+          throw FileUploadError('No user email found. Please log in again.');
+        }
+      } else {
+        setState(() {
+          _uploadMessage = 'Upload failed';
+          _fileUploaded = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _uploadMessage = 'Upload failed: ${e.toString()}';
+        _fileUploaded = false;
+      });
+    }
+  }
+
   Future<void> pickAndUploadFile() async {
-    final typeGroup = XTypeGroup(
-      label: 'images',
-      extensions: ['jpg', 'jpeg', 'png', 'gif'],
+    if (_fileUploaded) {
+      setState(() {
+        _uploadMessage = 'A file has already been uploaded. Please wait.';
+      });
+      return;
+    }
+
+    if (_selectedTripId == null) {
+      setState(() {
+        _uploadMessage = 'Please select a trip first.';
+      });
+      return;
+    }
+
+    final option = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: const Color(0xFF1E1E1E),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: Colors.white),
+              title: const Text('Take a Picture',
+                  style: TextStyle(color: Colors.white)),
+              onTap: () => Navigator.pop(context, 'camera'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: Colors.white),
+              title: const Text('Choose from Gallery',
+                  style: TextStyle(color: Colors.white)),
+              onTap: () => Navigator.pop(context, 'gallery'),
+            ),
+          ],
+        ),
+      ),
     );
 
-    final XFile? file = await openFile(acceptedTypeGroups: [typeGroup]);
+    if (option == null) return;
+
+    XFile? file;
+    if (option == 'camera') {
+      // Use the camera guide screen for guided photo capture
+      file = await Navigator.push<XFile>(
+        context,
+        MaterialPageRoute(builder: (context) => const CameraGuideScreen()),
+      );
+    } else {
+      final typeGroup = XTypeGroup(
+        label: 'images',
+        extensions: ['jpg', 'jpeg', 'png', 'gif'],
+      );
+      final result = await openFile(acceptedTypeGroups: [typeGroup]);
+      if (result != null) {
+        file = XFile(result.path);
+      }
+    }
+    
     if (file == null) return;
 
-    final fileSizeLimit = 5 * 1024 * 1024;
+    final fileSizeLimit = 5 * 1024 * 1024; // 5MB
     if (await file.length() > fileSizeLimit) {
       setState(() {
-        _uploadMessage = 'File size exceeds limit ($fileSizeLimit bytes).';
+        _uploadMessage = 'File size exceeds 5MB limit';
         fileName = null;
       });
       return;
     }
 
-    setState(() {
-      fileName = file.name;
-      _uploadMessage = null;
-      _uploadedFileUrl = null;
-    });
-
-    try {
-      final String? uploadedUrl = await _apiService.uploadFile(File(file.path));
-      setState(() {
-        if (uploadedUrl != null) {
-          _uploadedFileUrl = uploadedUrl;
-          _uploadMessage = 'Upload successful!';
-        } else {
-          _uploadMessage = 'Upload failed.';
-        }
-      });
-    } catch (e) {
-      setState(() {
-        _uploadMessage = 'Upload failed: ${e.toString()}';
-      });
-    }
+    await _processUploadedFile(file);
   }
-
-  void _handleCarouselTap(TapUpDetails details) {
-    final box = context.findRenderObject() as RenderBox;
-    final localOffset = box.globalToLocal(details.globalPosition);
-    final dx = localOffset.dx;
-    final screenWidth = MediaQuery.of(context).size.width;
-
-    if (dx < screenWidth / 2) {
-      _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
-    } else {
-      _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
-    }
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    _pageController.dispose();
-    _arrowController.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final darkBackground = const Color(0xFF121212);
@@ -184,46 +288,6 @@ class _FileUploadPageState extends State<FileUploadPage>
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             const SizedBox(height: 30),
-            GestureDetector(
-              onTapUp: _handleCarouselTap,
-              child: SizedBox(
-                height: 200,
-                child: PageView.builder(
-                  controller: _pageController,
-                  itemCount: 4,
-                  itemBuilder: (context, index) {
-                    double offset = (_currentPage - index);
-                    double scale = max(0.9, 1 - offset.abs() * 0.3);
-                    double opacity = max(0.5, 1 - offset.abs() * 0.5);
-                    double translate = offset * -20;
-
-                    return Transform.translate(
-                      offset: Offset(translate, 0),
-                      child: Transform.scale(
-                        scale: scale,
-                        child: Opacity(
-                          opacity: opacity,
-                          child: Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 12),
-                            width: 180,
-                            height: 180,
-                            decoration: BoxDecoration(
-                              color: placeholderColor,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: Colors.white, width: 2),
-                            ),
-                            child: const Center(
-                              child: Icon(Icons.image, size: 48, color: Colors.white70),
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-            const SizedBox(height: 40),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Container(
@@ -235,13 +299,20 @@ class _FileUploadPageState extends State<FileUploadPage>
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 30),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (_isLoadingTrips)
+                  children: [                    if (_isLoadingTrips)
                       const Center(child: CircularProgressIndicator())
                     else if (_tripsErrorMessage != null)
                       Center(
                         child: Text(
                           _tripsErrorMessage!,
+                          style: const TextStyle(color: Colors.redAccent),
+                          textAlign: TextAlign.center,
+                        ),
+                      )
+                    else if (_ocrError != null)
+                      Center(
+                        child: Text(
+                          _ocrError!,
                           style: const TextStyle(color: Colors.redAccent),
                           textAlign: TextAlign.center,
                         ),
@@ -270,6 +341,7 @@ class _FileUploadPageState extends State<FileUploadPage>
                             fileName = null;
                             _uploadMessage = null;
                             _uploadedFileUrl = null;
+                            _fileUploaded = false;
                           });
                         },
                       ),
@@ -330,11 +402,14 @@ class _FileUploadPageState extends State<FileUploadPage>
                 children: [
                   SlideTransition(
                     position: _arrowAnimation,
-                    child: Icon(Icons.keyboard_arrow_up, size: 48, color: Colors.white),
+                    child: const Icon(Icons.keyboard_arrow_up, size: 48, color: Colors.white),
                   ),
-                  const Text(
-                    'Swipe up to upload',
-                    style: TextStyle(color: Colors.white70, fontSize: 16),
+                  Text(
+                    _fileUploaded ? 'File uploaded' : 'Swipe up to upload',
+                    style: TextStyle(
+                      color: _fileUploaded ? Colors.white38 : Colors.white70,
+                      fontSize: 16,
+                    ),
                   ),
                   const SizedBox(height: 24),
                 ],

@@ -49,7 +49,6 @@ class ApiService {
       throw Exception('Failed to fetch trips');
     }
   }
-
   // Upload file to backend (multipart/form-data, field name 'file')
   Future<String?> uploadFile(File file) async {
     final token = await AuthService().getToken();
@@ -57,13 +56,16 @@ class ApiService {
     final request = http.MultipartRequest('POST', uri)
       ..fields['bucket'] = 'images'
       ..files.add(await http.MultipartFile.fromPath('file', file.path));
+
     if (token != null) {
       request.headers['Authorization'] = 'Bearer $token';
     }
+
     final response = await request.send();
     print('Upload status: ${response.statusCode}');
     final respStr = await response.stream.bytesToString();
     print('Upload response: $respStr');
+
     if (response.statusCode == 201) {
       // Construct the file URL manually
       final fileName = file.path.split('/').last;
